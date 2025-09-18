@@ -161,6 +161,19 @@ function findNearestSite(lat, lng, thresholdM = 25) {
 }
 const getSiteById = (id) => state.sites.find((s) => s.id === id) || null;
 
+/* Parse "lat,lng" or "lat lng" */
+function parseCoords(text) {
+  if (!text) return null;
+  const s = text.trim().replace(/[\s,]+/g, ",");
+  const [a, b] = s.split(",");
+  if (!a || !b) return null;
+  const lat = parseFloat(a);
+  const lng = parseFloat(b);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
 /* Marker + popup */
 function barrelDivIcon(count = 0) {
   const html = `
@@ -629,8 +642,26 @@ function bindUI() {
       const qty = Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 1;
       const name = nameEl.value;
 
-      let latTxt = latEl.textContent,
-        lngTxt = lngEl.textContent;
+      let latTxt = latEl.textContent;
+      let lngTxt = lngEl.textContent;
+
+      // 1) Fallback: se l'utente ha scritto coordinate manuali
+      const coordInput = $("#coordInput");
+      if (
+        (!latTxt || latTxt === "—" || !lngTxt || lngTxt === "—") &&
+        coordInput?.value.trim()
+      ) {
+        const coordsFromText = parseCoords(coordInput.value.trim());
+        if (coordsFromText) {
+          setSelectedCoords(coordsFromText.lat, coordsFromText.lng);
+          state.map?.setView([coordsFromText.lat, coordsFromText.lng], 14);
+          latTxt = $("#latVal").textContent;
+          lngTxt = $("#lngVal").textContent;
+          toast("Coordinates set from input");
+        }
+      }
+
+      // 2) Fallback: geocoding da address
       if (
         (!latTxt || latTxt === "—" || !lngTxt || lngTxt === "—") &&
         name &&
@@ -645,6 +676,7 @@ function bindUI() {
           toast("Coordinates set from address");
         }
       }
+
       if (!latTxt || latTxt === "—" || !lngTxt || lngTxt === "—")
         return toast("Set coordinates");
       if (!operator) return toast("Operator is required.");
@@ -660,6 +692,7 @@ function bindUI() {
     });
   }
 
+  // GPS
   $("#useMyLocation")?.addEventListener("click", () => {
     if (!navigator.geolocation) return toast("Geolocation not available");
     navigator.geolocation.getCurrentPosition(
@@ -682,6 +715,7 @@ function bindUI() {
     );
   });
 
+  // Copy coords
   $("#copyCoords")?.addEventListener("click", async () => {
     const lat = $("#latVal").textContent,
       lng = $("#lngVal").textContent;
@@ -700,6 +734,7 @@ function bindUI() {
     toast("Coordinates copied");
   });
 
+  // Pin from address
   $("#pinFromAddress")?.addEventListener("click", async () => {
     const name = $("#siteName").value.trim();
     if (!name) return toast("Enter an address or place name");
@@ -710,6 +745,27 @@ function bindUI() {
     toast("Pinned from address");
   });
 
+  // Pin from coordinates
+  $("#pinFromCoords")?.addEventListener("click", () => {
+    const txt = $("#coordInput")?.value.trim() || "";
+    const coords = parseCoords(txt);
+    if (!coords) return toast('Invalid coordinates. Use "lat,lng".');
+    setSelectedCoords(coords.lat, coords.lng);
+    state.map?.setView([coords.lat, coords.lng], 14);
+    toast("Pinned from coordinates");
+  });
+  $("#coordInput")?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const txt = e.currentTarget.value.trim();
+    const coords = parseCoords(txt);
+    if (!coords) return toast('Invalid coordinates. Use "lat,lng".');
+    setSelectedCoords(coords.lat, coords.lng);
+    state.map?.setView([coords.lat, coords.lng], 14);
+    toast("Pinned from coordinates");
+  });
+
+  // Address suggestions + change
   const addrInput = $("#siteName");
   const addrList = $("#addrList");
   if (addrInput && addrList) {
@@ -737,10 +793,12 @@ function bindUI() {
     });
   }
 
+  // Sites filter
   $("#siteFilter")?.addEventListener("input", (e) =>
     renderSitesList(e.target.value || "")
   );
 
+  // Export
   $("#exportWord")?.addEventListener("click", exportWord);
   $("#exportExcel")?.addEventListener("click", exportExcel);
   $("#exportPdf")?.addEventListener("click", exportPdf);
@@ -752,6 +810,7 @@ function bindUI() {
     );
   });
 
+  // Clear all
   $("#clearAll")?.addEventListener("click", () => {
     if (!confirm("Clear all demo data?")) return;
     localStorage.removeItem(STORE.SITES);
