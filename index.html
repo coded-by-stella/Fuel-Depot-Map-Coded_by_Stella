@@ -150,6 +150,23 @@
             </div>
           </label>
 
+          <label class="row">
+  <span>Coordinates</span>
+  <div class="row-flex">
+    <input
+      id="coordInput"
+      type="text"
+      inputmode="decimal"
+      placeholder="e.g. 59.9139, 10.7522"
+      autocomplete="off"
+    />
+    <button type="button" id="pinFromCoords" class="secondary">
+      Pin from coords
+    </button>
+  </div>
+  <small class="hint">Formats: “lat,lng” or “lat lng”.</small>
+</label>
+
           <div class="coords">
             <div>
               <div class="coord-line">
