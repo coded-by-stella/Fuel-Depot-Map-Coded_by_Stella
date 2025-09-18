@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fuel Depot Map — Demo by coded_by_stella</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="src/index.css" />
+
+    <!-- Small overrides: apply Inter + slightly larger base font -->
+    <style>
+      html,
+      body {
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI,
+          Roboto, Arial !important;
+        font-size: 16.5px;
+      }
+      .intro-section .intro h2 {
+        margin: 0 0 8px 0;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+      }
+      .intro-section .intro p,
+      .intro-section .intro li {
+        line-height: 1.55;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- HEADER -->
+    <header class="app-header">
+      <h1>Fuel Depot Map</h1>
+      <div class="totals">
+        <span id="totalBarrels">0</span> Barrels •
+        <span id="totalLiters">0</span> Liters
+      </div>
+    </header>
+
+    <!-- HERO / ABOUT -->
+    <section class="intro-section">
+      <div class="intro card hero">
+        <span class="preheadline">Fuel where &amp; when you need it</span>
+        <h2 class="headline">See, update and share fuel depots in seconds.</h2>
+        <p class="subheadline">
+          A rapid field tool to <em>locate, record and update</em> helicopter
+          fuel depots on a live map. It turns scattered notes into a
+          <strong>single source of truth</strong>fewer calls and spreadsheets,
+          faster decisions, safer operations.
+        </p>
+
+        <div class="intro-body">
+          <p><strong>Key features</strong></p>
+          <ul>
+            <li>
+              <strong>Live Map + GPS:</strong> auto-centers on your position.
+            </li>
+            <li>
+              <strong>Barrel markers:</strong> quick visual count per site.
+            </li>
+            <li>
+              <strong>Deposit / Withdraw:</strong> log ops with operator + qty.
+            </li>
+            <li>
+              <strong>Real-time totals:</strong> barrels &amp; liters (1 bbl =
+              200 L).
+            </li>
+            <li>
+              <strong>Precise coords:</strong> copy exact lat/lng in one click.
+            </li>
+            <li>
+              <strong>History log:</strong> timestamped record per operator.
+            </li>
+            <li>
+              <strong>Local persistence:</strong> browser
+              <code>localStorage</code> (demo).
+            </li>
+          </ul>
+
+          <p>
+            <strong>Tech stack (demo)</strong> HTML, CSS, JavaScript, Leaflet
+            (OpenStreetMap tiles), Geolocation API, localStorage. Real
+            deployments include a secure backend, authentication, roles and
+            audit logs.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN GRID:New Operation + Map (right) -->
+    <main class="layout two-cols">
+      <!-- LEFT COLUMN -->
+      <aside class="panel">
+        <form id="opForm" class="card">
+          <h2>New Operation</h2>
+
+          <label class="row">
+            <span>Action</span>
+            <select id="action">
+              <option value="deposit">Deposit</option>
+              <option value="withdraw">Withdraw</option>
+            </select>
+          </label>
+
+          <label class="row">
+            <span>Operator</span>
+            <input
+              id="operator"
+              type="text"
+              placeholder="Name & callsign"
+              required
+            />
+          </label>
+
+          <label class="row">
+            <span>Barrels</span>
+            <input id="qty" type="number" min="1" step="1" value="1" required />
+          </label>
+
+          <label class="row">
+            <span>Location name</span>
+            <div class="row-flex">
+              <input
+                id="siteName"
+                list="addrList"
+                type="text"
+                placeholder="Street, city (Norway)"
+                autocomplete="off"
+              />
+              <datalist id="addrList"></datalist>
+              <button type="button" id="pinFromAddress" class="secondary">
+                Pin from address
+              </button>
+            </div>
+          </label>
+
+          <div class="coords">
+            <div>
+              <div class="coord-line">
+                <span>Lat:</span><code id="latVal">—</code>
+              </div>
+              <div class="coord-line">
+                <span>Lng:</span><code id="lngVal">—</code>
+              </div>
+            </div>
+            <button type="button" id="copyCoords" class="ghost">Copy</button>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary">Save Operation</button>
+            <button type="button" id="useMyLocation" class="secondary">
+              Use my GPS
+            </button>
+          </div>
+
+          <p class="hint">
+            Tip: click on the map to pre-fill coordinates for a new or existing
+            site.
+          </p>
+        </form>
+      </aside>
+
+      <!-- RIGHT COLUMN: MAP -->
+      <section class="map-wrap card">
+        <div id="map"></div>
+      </section>
+    </main>
+
+    <!-- FULL-WIDTH: History + Sites -->
+    <section class="below-grid">
+      <section class="card history">
+        <h2>History</h2>
+        <div id="historyList" class="history-list empty">
+          <p class="muted">No operations yet.</p>
+        </div>
+        <div class="history-actions">
+          <button id="exportWord" class="secondary">Export Word</button>
+          <button id="exportExcel" class="secondary">Export Excel</button>
+          <button id="exportPdf" class="secondary">Export PDF</button>
+          <button id="exportJson" class="ghost">Export JSON</button>
+          <button id="clearAll" class="danger">Clear demo data</button>
+        </div>
+      </section>
+
+      <section class="card sites">
+        <h2>Sites</h2>
+        <div class="sites-actions">
+          <input id="siteFilter" type="text" placeholder="Filter sites" />
+        </div>
+        <div id="sitesList" class="sites-list"></div>
+      </section>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <p id="footer-text">
+          This AI project was coded with ❤️ by
+          <a
+            id="footer-link-name"
+            href="https://portfolio-codedbystella.netlify.app/"
+            target="_blank"
+            >Stella Marrali</a
+          >, is open-sourced on
+          <a
+            id="footer-link-github"
+            href="https://github.com/coded-by-stella"
+            target="_blank"
+            >GitHub</a
+          >
+          and hosted on
+          <a
+            id="footer-link-host"
+            href="https://coded-by-stella.netlify.app/"
+            target="_blank"
+            >Netlify</a
+          >.
+        </p>
+      </div>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+
+    <!-- App JS -->
+    <script src="src/index.js"></script>
+  </body>
+</html>
